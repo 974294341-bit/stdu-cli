@@ -43,7 +43,9 @@ export const STDU = {
       // 学生成绩查询
       grade: '/xscjcx/xscjcx_cxXscjIndex.html?gnmkdm=N305005',
       // 学籍信息
-      profile: '/xsxxxggl/xsgrxxwh_cxXsgrxx.html?gnmkdm=N100801'
+      profile: '/xsxxxggl/xsgrxxwh_cxXsgrxx.html?gnmkdm=N100801',
+      // 空闲教室查询（经验值，学校定制差异用 dump 校准）
+      room: '/kbcx/kbcx_cxKxjs.html?gnmkdm=N2155'
     },
     // 学期编码：xqm 3=秋季(第一学期) 12=春季(第二学期) 16=夏季(第三学期)
     termCode: { 1: '3', 2: '12', 3: '16' }
