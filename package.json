@@ -1,0 +1,36 @@
+{
+  "name": "stdu-cli",
+  "version": "0.1.0",
+  "description": "面向 AI Agent 的石家庄铁道大学（STDU）校园服务 CLI：课表、成绩、登录自检（WebVPN + CAS + 正方 V9）",
+  "type": "module",
+  "bin": {
+    "stdu-cli": "src/cli.js"
+  },
+  "files": [
+    "src",
+    "skills",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node --test",
+    "stdu-cli": "node src/cli.js"
+  },
+  "keywords": [
+    "stdu",
+    "石家庄铁道大学",
+    "cli",
+    "agent",
+    "campus",
+    "timetable",
+    "zfsoft",
+    "playwright"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "playwright": "^1.48.0"
+  }
+}
