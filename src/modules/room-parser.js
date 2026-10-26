@@ -18,14 +18,18 @@ function normalizeRoom(item) {
   if (!item || typeof item !== 'object') return null;
   const room = pick(item, ['jsmc', 'JASMC', 'jasmc', 'roomName', 'cdmc']);
   if (!room) return null;
-  const capacity = toInt(pick(item, ['czrs', 'CZRS', 'zss', 'capacity', 'zws']));
+  const capacity = toInt(pick(item, ['czrs', 'CZRS', 'zss', 'capacity', 'zws', 'kszws1']));
   const available = toInt(pick(item, ['synum', 'SYNUM', 'kyl', 'KYS', 'kys', 'available', 'kxs']));
   return {
     building: pick(item, ['jasm', 'JASM', 'jxlmc', 'xqmc']) ?? null,
     room: String(room).trim(),
+    floor: pick(item, ['lch', 'LH', 'floor']) ?? null,
+    type: pick(item, ['cdlbmc', 'cdlb', 'CDLB', 'roomType']) ?? null,
     campus: pick(item, ['xqmc', 'XQMC', 'campus']) ?? null,
+    campusId: pick(item, ['xqh_id', 'xqh']) ?? null,
     capacity,
-    available,
+    // 该接口返回的是“指定时段空闲教室”列表，整间空闲 → 可用数=容量
+    available: available == null ? capacity : available,
     raw: item
   };
 }
@@ -38,6 +42,7 @@ function pick(obj, keys) {
 }
 
 function toInt(value) {
+  if (value == null || value === '') return null;
   const n = Number(value);
   return Number.isFinite(n) ? n : null;
 }
