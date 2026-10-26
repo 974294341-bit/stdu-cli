@@ -9,6 +9,7 @@ const DEFAULT_PATHS = [
   STDU.zf.endpoints.menu,
   STDU.zf.endpoints.course,
   STDU.zf.endpoints.grade,
+  STDU.zf.endpoints.room,
   STDU.zf.endpoints.profile
 ];
 
@@ -63,5 +64,6 @@ export async function dump(options = {}) {
     note: '把本文件提供给维护者即可校准 course/grade 端点与字段；请勿在其中包含账号密码（密码不会出现在响应里）。'
   };
   writeFileSync(outPath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
+  process.stderr.write(`\n[dump] 已抓取 ${records.length} 个响应，存于：\n  ${outPath}\n[dump] 把该文件发给维护者即可校准课表/成绩/空教室接口（不含密码）。\n`);
   return { outPath, count: records.length, endpoints: DEFAULT_PATHS };
 }
