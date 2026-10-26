@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { copySkill, writeInstallConfig } from './skill.js';
+import { login } from './login.js';
 
 const require = createRequire(import.meta.url);
 
@@ -32,9 +33,10 @@ function runCommand(command, args) {
   });
 }
 
-// `stdu-cli install`：把技能装进各 AI 的 skills 目录 + 装好浏览器内核 + 写配置。
-// 一条命令即可让同学的 AI 具备"查 STDU 教务"的能力。
-export async function install({ global = true } = {}) {
+// `stdu-cli install`：把技能装进各 AI 的 skills 目录 + 装好浏览器内核 + 写配置，
+// 最后自动打开学校统一认证（CAS）登录页，等待真人登录。
+// 一条命令即可完成"下载 → 跳认证页 → 认证完直接在对话框用功能"。
+export async function install({ global = true, skipLogin = false } = {}) {
   log('① 正在复制技能到 Agent 的 skills 目录…');
   const targets = copySkill();
   for (const t of targets) log(`   ✓ ${t}`);
@@ -57,7 +59,7 @@ export async function install({ global = true } = {}) {
     await installManagedChromium();
     log('   ✓ Chromium 就绪');
   } catch (error) {
-    log(`   Chromium 安装未完成：${error.message}（可稍后手动 stdu-cli browser install chromium --yes）`);
+    log(`   Chromium 安装未完成：${error.message}（可稍后手动 ${run} browser install chromium --yes）`);
   }
 
   const configFile = writeInstallConfig({
@@ -68,11 +70,26 @@ export async function install({ global = true } = {}) {
   });
   log(`④ 已写入安装配置：${configFile}`);
 
-  log('安装完成！接下来只需做一次真人登录：');
-  log(`   ${run} login`);
-  log('登录后，直接对你的 AI 说"这学期课表""空教室""我绩点多少"即可。');
+  const result = { skillInstalled: true, targets, run, repo: CANONICAL_REPO, configFile };
 
-  return { skillInstalled: true, targets, run, repo: CANONICAL_REPO, configFile };
+  if (skipLogin) {
+    log('⑤ 跳过自动登录。需要时手动运行：');
+    log(`   ${run} login`);
+    log('登录后，直接对你的 AI 说"这学期课表""空教室""我绩点多少"即可。');
+    return result;
+  }
+
+  // ⑤ 自动打开学校统一认证页，等待真人完成 CAS 登录（含图形验证码）。
+  log('⑤ 正在打开学校统一认证（CAS）登录页，请在浏览器中完成登录…');
+  try {
+    const loginResult = await login({});
+    log(`   ✓ 登录成功（${loginResult.browser}）。现在直接在对话框里说"课表 / 成绩 / 空教室"就能查了。`);
+    result.login = { browser: loginResult.browser, entryUrl: loginResult.entryUrl };
+  } catch (error) {
+    log(`   未自动登录（${error.message}），稍后手动运行：${run} login`);
+    result.loginSkipped = true;
+  }
+  return result;
 }
 
 export async function installManagedChromium() {
