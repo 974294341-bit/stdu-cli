@@ -9,6 +9,8 @@ import { getGrade } from './modules/grade.js';
 import { getEmptyRooms } from './modules/room.js';
 import { install, installManagedChromium } from './modules/install.js';
 import { clearSession } from './modules/session-store.js';
+import { calibrate } from './modules/calibrate.js';
+import { bootstrap } from './modules/bootstrap.js';
 
 export async function run(argv) {
   const { positional, flags } = parseArgs(argv);
@@ -20,7 +22,7 @@ export async function run(argv) {
         return emit(successEnvelope(await doctor({ env: process.env })));
 
       case 'login':
-        return emit(successEnvelope(await login({ timeoutMs: flags.timeout ? Number(flags.timeout) : undefined })));
+        return emit(successEnvelope(await login({ timeoutMs: flags.timeout ? Number(flags.timeout) * 1000 : undefined })));
 
       case 'logout': {
         const selection = getSelectedBrowser({ env: process.env });
@@ -53,6 +55,12 @@ export async function run(argv) {
           out: flags.out,
           paths: flags.paths ? String(flags.paths).split(',').filter(Boolean) : undefined
         })));
+
+      case 'calibrate':
+        return emit(successEnvelope(await calibrate({ out: flags.out })));
+
+      case 'bootstrap':
+        return emit(successEnvelope(await bootstrap({ out: flags.out, timeoutMs: flags.timeout ? Number(flags.timeout) * 1000 : undefined })));
 
       case 'install':
         return emit(successEnvelope(await install({ skipLogin: !!flags['no-login'] })));
