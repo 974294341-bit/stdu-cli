@@ -55,7 +55,7 @@ export async function run(argv) {
         })));
 
       case 'install':
-        return emit(successEnvelope(await install()));
+        return emit(successEnvelope(await install({ skipLogin: !!flags['no-login'] })));
 
       case 'help':
       case '': {
@@ -146,7 +146,7 @@ const HELP = `
 stdu-cli — 石家庄铁道大学（STDU）校园服务 CLI（WebVPN + CAS + 正方 V9）
 
 用法：
-  stdu-cli install                    一键安装：把技能装进各 AI + 装好浏览器内核（同学首次用这一条）
+  stdu-cli install [--no-login]       一键安装：装技能+浏览器内核，并自动打开学校 CAS 登录页（同学首次用这一条；--no-login 可跳过自动登录）
   stdu-cli doctor                     运行环境/依赖/会话自检
   stdu-cli login                      打开浏览器，手动完成 WebVPN+CAS 登录（含图形验证码）
   stdu-cli logout                     清除已保存的登录会话
