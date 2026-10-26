@@ -4,7 +4,7 @@ import { clickQuery, collectJsonWhile, gotoZf, postFormInPage } from './jw.js';
 import { needLoginError, openSession } from './session.js';
 
 // 正方 V9 空闲教室端点（经验值，学校定制差异用 dump 校准）。
-const ROOM_ENDPOINT = '/kbcx/kbcx_cxKxjs.html?gnmkdm=N2155';
+const ROOM_ENDPOINT = STDU.zf.endpoints.room;
 
 // 查询某时段空闲教室。
 // options: { weekday(1-7), period('1-2'), week(1..20), campus }
