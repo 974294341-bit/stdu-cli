@@ -11,6 +11,7 @@ import { install, installManagedChromium } from './modules/install.js';
 import { clearSession } from './modules/session-store.js';
 import { calibrate } from './modules/calibrate.js';
 import { bootstrap } from './modules/bootstrap.js';
+import { addDays, todayStr } from './modules/week.js';
 
 export async function run(argv) {
   const { positional, flags } = parseArgs(argv);
@@ -36,7 +37,13 @@ export async function run(argv) {
       }
 
       case 'course':
-        return emit(successEnvelope(await getCourse({ year: flags.year, term: flags.term })));
+        return emit(successEnvelope(await getCourse({
+          year: flags.year,
+          term: flags.term,
+          date: flags.tomorrow ? addDays(todayStr(), 1)
+            : flags.today ? todayStr()
+            : flags.date ? String(flags.date) : undefined
+        })));
 
       case 'grade':
         return emit(successEnvelope(await getGrade({ year: flags.year, term: flags.term })));
@@ -160,6 +167,7 @@ stdu-cli — 石家庄铁道大学（STDU）校园服务 CLI（WebVPN + CAS + �
   stdu-cli logout                     清除已保存的登录会话
   stdu-cli browser status|list|use <id>|install chromium --yes
   stdu-cli course [--year 2025] [--term 1|2|3]   课表（term: 1秋 2春 3夏）
+  stdu-cli course --tomorrow|--today|--date 2026-10-27   某一天的课（自动按教学周次过滤）
   stdu-cli grade [--year 2025] [--term 1|2|3]    成绩 + GPA/学分统计
   stdu-cli room [--weekday 1] [--period 1-2] [--week 1] [--campus 校本部] [--onlyAvailable]   空闲教室
   stdu-cli dump [--out path] [--paths a,b,c]     抓取真实响应，用于校准端点
