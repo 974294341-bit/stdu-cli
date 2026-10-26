@@ -1,7 +1,6 @@
 import { AUTH_CHECK_URL } from '../config.js';
 import { assertBrowserAvailable, contextOptions, requirePlaywright } from './browser.js';
-import { classifyAuthPage } from './auth-detector.js';
-import { readPageState } from './page.js';
+import { classifyAuthPage, waitForLogin } from './auth-detector.js';
 import { saveSession } from './session-store.js';
 
 // 交互式登录：打开真实浏览器，用户手动完成 WebVPN + CAS（账号密码 + 图形验证码），
@@ -43,18 +42,4 @@ export async function login(options = {}) {
   } finally {
     await context.close().catch(() => {});
   }
-}
-
-async function waitForLogin(page, options = {}) {
-  const timeoutMs = options.timeoutMs ?? 300000;
-  const deadline = Date.now() + timeoutMs;
-  let auth = null;
-  let state = null;
-  while (Date.now() < deadline) {
-    state = await readPageState(page);
-    auth = classifyAuthPage(state);
-    if (auth.loggedIn) return { loggedIn: true, auth, state };
-    await page.waitForTimeout(1500);
-  }
-  return { loggedIn: false, auth, state };
 }
