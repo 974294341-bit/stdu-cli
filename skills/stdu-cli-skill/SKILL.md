@@ -47,6 +47,8 @@ stdu-cli login
 ## 三、怎么用（Agent 行为准则）
 
 1. **先确认已登录**：首次或遇到 `error.code === 'NEED_LOGIN'`，引导用户运行 `stdu-cli login`，不要自己尝试填密码。
+   > 实际上 `course` / `grade` / `room` 已内置「按需登录」：会话过期时会自动打开认证页等用户登录，登录完立刻查完返回。
+   > 所以遇到 `NEED_LOGIN`（例如传了 `--autoLogin false`），直接再跑一次原命令即可，不必单独跑 `login`。
 2. **调用命令取数据**：用 Bash 运行 `stdu-cli <命令>`（或 `npx -y github:974294341-bit/stdu-cli <命令>`）。所有输出是 JSON：`{ok:true,data}` 或 `{ok:false,error:{code,message,hint}}`。
 3. **读 data 用中文回答**：把 JSON 转成学生好懂的话。例如课表列出"周X第X-X节 课程名 @ 地点 老师"；成绩给出列表 + GPA/总学分/已修学分。
 4. **空教室推断**：用户只说"空教室"，用今天的星期几当 `--weekday`，反问"第几节？（如 1-2）"；用户说"周X第Y节"直接带入。默认只列 `available>0` 的教室。
@@ -63,6 +65,7 @@ Agent：运行 `stdu-cli grade --term 1` → 读 data.stats.weightedGpa 与 grad
 
 ## 五、适配说明（维护者）
 
-- 端点表在 `src/config.js` 的 `STDU.zf.endpoints`；学校改版只改这里。
-- 课表用 `kbList`、成绩用 `items`、空闲教室用 `rows` JSON（字段名多别名兜底，见 `*-parser.js`）。
-- 若 `PARSE_FAILED`，让用户跑 `stdu-cli dump` 抓真实响应，据其校准解析器。
+- 端点表在 `src/config.js` 的 `STDU.zf.endpoints`（2026-10 已校准为 STDU 真实部署）；学校改版只改这里。
+- 课表用 `kbList`、成绩用 `items`、空闲教室也用 `items`（注意不是 `rows`）JSON；字段名多别名兜底，见 `*-parser.js`。
+- 功能页只返回外壳 HTML，真实数据另有 POST 接口（见 `endpoints.courseData` / `gradeData` / `roomData`）。
+- 若 `PARSE_FAILED`，让用户跑 `stdu-cli bootstrap` 或 `stdu-cli dump` 抓真实响应，据其校准解析器。
