@@ -2,7 +2,7 @@ import { STDU } from '../config.js';
 import { classifyAuthPage } from './auth-detector.js';
 import { parseCourseJson } from './course-parser.js';
 import { clickQuery, collectJsonWhile, gotoZf, postFormInPage } from './jw.js';
-import { needLoginError, openSession } from './session.js';
+import { ensureSession, needLoginError } from './session.js';
 
 // 默认学年学期：9-1 月算秋季(term1)，2-7 月算春季(term2)。
 export function defaultTerm(now = new Date()) {
@@ -21,7 +21,8 @@ export async function getCourse(options = {}) {
   const { year, term } = resolveTerm(options);
   const xqm = termToXqm(term);
 
-  const session = await openSession(options);
+  // 会话过期时自动弹浏览器让用户登录，登录完在同一上下文里立刻查完返回
+  const { session, relogged } = await ensureSession(options);
   if (!session.auth.loggedIn) {
     await session.context.close().catch(() => {});
     throw needLoginError(session.auth);
@@ -29,32 +30,30 @@ export async function getCourse(options = {}) {
 
   try {
     const { page } = session;
-    const collected = await collectJsonWhile(page, async () => {
-      await gotoZf(page, STDU.zf.endpoints.course);
-      await clickQuery(page);
-    }, { match: (url) => /xskbcx|kbcx/.test(url), afterMs: 2500 });
+    // 直接 POST 到真实数据接口（绕过外壳页 + 查询按钮的不可靠点击）。
+    const res = await postFormInPage(page, STDU.zf.endpoints.courseData, {
+      xnm: String(year),
+      xqm,
+      ...STDU.zf.coursePost
+    });
 
-    let body = pickKbBody(collected);
-    let source = body ? 'captured' : null;
-
-    if (!body) {
-      // 兜底：直接在页面上下文里 POST 查询（带浏览器 Cookie，穿透 WebVPN）。
-      const res = await postFormInPage(page, STDU.zf.endpoints.course.split('?')[0], {
-        xnm: String(year),
-        xqm,
-        kzlx: 'ck'
-      });
-      if (res.json && Array.isArray(res.json.kbList)) {
-        body = res.json;
-        source = 'post';
-      }
+    let body = res.json;
+    let source = 'post';
+    if (!body || !Array.isArray(body.kbList)) {
+      // 兜底：保留原有“导航+抓响应”路径，兼容个别改版
+      const collected = await collectJsonWhile(page, async () => {
+        await gotoZf(page, STDU.zf.endpoints.course);
+        await clickQuery(page);
+      }, { match: (url) => /xskbcx|kbcx/.test(url), afterMs: 2500 });
+      body = pickKbBody(collected);
+      source = body ? 'captured' : source;
     }
 
-    if (!body) {
+    if (!body || !Array.isArray(body.kbList)) {
       const error = new Error('未能从正方系统取得课表数据（未发现 kbList JSON）。');
       error.code = 'PARSE_FAILED';
       error.hint = '运行 `stdu-cli dump` 抓取真实响应后再校准端点；系统可能改版或课表接口有变动。';
-      error.details = { year, term, xqm, collectedUrls: collected.map((c) => c.url) };
+      error.details = { year, term, xqm, status: res.status, url: res.url };
       throw error;
     }
 
@@ -69,6 +68,7 @@ export async function getCourse(options = {}) {
     return {
       query: { year, term, xqm },
       source,
+      relogged,
       ...parsed
     };
   } finally {
