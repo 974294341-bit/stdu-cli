@@ -28,15 +28,20 @@
 - 另有短信验证码登录表单 `#fm2`。
 - **因为存在图形验证码，可编程自动登录不可行** → 本工具采用"真人浏览器手动登录 + 持久化 profile"方案。
 
-### 3. 正方 V9 端点（经验值，需 `dump` 校准）
-| 功能 | 端点 |
-|---|---|
-| 首页/菜单 | `/xtgl/index_initMenu.html?jsdm=xs&echarts=1` |
-| 课表 | `/kbcx/xskbcx_cxXsKb.html?gnmkdm=N2151` |
-| 成绩 | `/xscjcx/xscjcx_cxXscjIndex.html?gnmkdm=N305005` |
-| 学籍 | `/xsxxxggl/xsgrxxwh_cxXsgrxx.html?gnmkdm=N100801` |
+### 3. 正方 V9 端点（**2026-10 已用真实会话校准**）
+菜单是树形折叠的，功能页由 `clickMenu('gnmkdm','/路径/','菜单名')` 触发；
+**功能页本身只返回外壳 HTML，真实数据由驱程脚本另行 POST**（外壳页不含 jQuery，直接打开时脚本会报错，这也是"点查询没反应"的根因）。
 
-- 课表查询返回 JSON（`kbList` 数组）；成绩查询返回 JSON（`items` 数组）。
+| 功能 | 菜单码 | 外壳页 | **真实数据接口（POST）** | 返回 |
+|---|---|---|---|---|
+| 首页/菜单 | — | `/xtgl/index_initMenu.html?jsdm=xs&echarts=1` | — | — |
+| 课表 | N2151 | `/kbcx/xskbcx_cxXskbcxIndex.html` | `/kbcx/xskbcx_cxXsgrkb.html` | `kbList` |
+| 成绩 | N305005 | `/cjcx/cjcx_cxDgXscj.html`（教师视图） | `/cjcx/cjcx_cxXsgrcj.html?doType=query`（学生视图） | `items` |
+| 空闲教室 | N2155 | `/cdjy/cdjy_cxKxcdlb.html` | `/cdjy/cdjy_cxKxcdlb.html?doType=query` | `items` |
+| 学籍 | N100801 | `/xsxxxggl/xsgrxxwh_cxXsgrxx.html` | — | — |
+
+- 课表 POST 参数（`xskbcx.js` 的 `paramMap`）：`xnm`（学年）+ `xqm` + `kzlx=ck` + 若干空字段。
+- 空闲教室的 `zcd`/`jcd` 是**位掩码**：`zcd |= 1<<(周-1)`、`jcd |= 1<<(节次-1)`，留空=不限；表单字段必须全部随请求发送，缺失会返回 `500 系统升级维护中`。
 - 学期编码 `xqm`：3=秋季(第一学期) / 12=春季(第二学期) / 16=夏季(第三学期)。
 - **校内使用**：jw.stdu.edu.cn 在校园网内可直接访问（或仍经 WebVPN 透明转发）；CAS 登录流程一致。本工具用真实浏览器，两种情形都覆盖。
 
@@ -84,9 +89,15 @@ stdu-cli grade --term 1     # 查本学期成绩 + 绩点/学分统计
 | `stdu-cli browser status\|list\|use <id>\|install chromium --yes` | 浏览器管理 |
 | `stdu-cli course [--year YYYY] [--term 1\|2\|3]` | 课表（默认当前学期） |
 | `stdu-cli grade [--year YYYY] [--term 1\|2\|3]` | 成绩 + GPA/学分统计 |
+| `stdu-cli room [--weekday 1] [--period 1-2] [--week 8] [--campus X]` | 空闲教室 |
+| `stdu-cli bootstrap` | 登录 + 抓真实响应校准接口（维护者用） |
 | `stdu-cli dump [--out path] [--paths a,b,c]` | 抓真实响应，校准端点 |
 
 所有命令输出 `{ ok, data, meta }` 或 `{ ok:false, error:{code,message,hint} }`。
+
+### 会话过期会自动处理
+CAS 会话较短（几分钟到几十分钟）。`course` / `grade` / `room` 检测到未登录时，
+**会自动打开认证页等你登录，登录成功就在同一个浏览器上下文里立刻把数据查完返回**——不需要先跑 `login` 再跑查询两条命令。
 
 ---
 
