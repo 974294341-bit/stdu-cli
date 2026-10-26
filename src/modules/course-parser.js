@@ -68,22 +68,27 @@ export function parsePeriods(value) {
 }
 
 // "1-16周" / "1-8,10-16周" / "1-16周(单)" / "3-15周(双)"
+// 注意：单/双只作用于它所在的那个逗号分段。
+//   "1-3周,5-7周(单),8-10周" => 1,2,3,5,7,8,9,10（不是全串按单周处理）
 export function parseWeeks(value) {
   if (value == null) return null;
   const text = String(value).replace(/\s/g, '');
-  const single = /单/.test(text);
-  const double = /双/.test(text);
   const weeks = new Set();
-  const regex = /(\d+)(?:\s*[-~至]\s*(\d+))?/g;
-  let m;
-  while ((m = regex.exec(text)) !== null) {
-    const start = Number(m[1]);
-    const end = m[2] != null ? Number(m[2]) : start;
-    if (start > 60 || end > 60) continue;
-    for (let w = start; w <= end; w += 1) {
-      if (single && w % 2 === 0) continue;
-      if (double && w % 2 === 1) continue;
-      weeks.add(w);
+  for (const seg of text.split(/[,，;；]/)) {
+    if (!seg) continue;
+    const single = /单/.test(seg);
+    const double = /双/.test(seg);
+    const regex = /(\d+)(?:\s*[-~至]\s*(\d+))?/g;
+    let m;
+    while ((m = regex.exec(seg)) !== null) {
+      const start = Number(m[1]);
+      const end = m[2] != null ? Number(m[2]) : start;
+      if (start > 60 || end > 60) continue;
+      for (let w = start; w <= end; w += 1) {
+        if (single && w % 2 === 0) continue;
+        if (double && w % 2 === 1) continue;
+        weeks.add(w);
+      }
     }
   }
   return weeks.size ? [...weeks].sort((a, b) => a - b) : null;
