@@ -21,7 +21,8 @@ description: 石家庄铁道大学（STDU / 铁大）校园服务技能。面向
 
 | 用户可能说 | 调用 | 备注 |
 |---|---|---|
-| "我的课表" / "今天上什么课" / "这学期课表" | `stdu-cli course [--year YYYY] [--term 1\|2\|3]` | term：1秋 2春 3夏；不写则默认当前学期 |
+| "我的课表" / "这学期课表" | `stdu-cli course [--year YYYY] [--term 1\|2\|3]` | term：1秋 2春 3夏；不写则默认当前学期 |
+| "明天课表" / "明天上什么课" / "后天有课吗" | `stdu-cli course --tomorrow`（或 `--today`、`--date 2026-10-27`） | **按某一天查课**：自动读当前教学周次，换算目标日期是第几周后过滤，结果已按节次排序 |
 | "成绩" / "我GPA多少" / "这学期成绩" | `stdu-cli grade [--year YYYY] [--term 1\|2\|3]` | 输出含 GPA/学分统计 |
 | "空教室" / "哪间教室没课" / "周X第X节哪有空教室" | `stdu-cli room [--weekday 1] [--period 1-2] [--week 1] [--campus 校本部]` | 不写条件时，用"今天"推断 weekday，并询问节次 |
 | "这门课考什么时候" / "考试安排" | 暂复用 `stdu-cli course` 或提示 `stdu-cli dump` | 考试接口需 dump 校准后补充 |
@@ -51,6 +52,7 @@ stdu-cli login
    > 所以遇到 `NEED_LOGIN`（例如传了 `--autoLogin false`），直接再跑一次原命令即可，不必单独跑 `login`。
 2. **调用命令取数据**：用 Bash 运行 `stdu-cli <命令>`（或 `npx -y github:974294341-bit/stdu-cli <命令>`）。所有输出是 JSON：`{ok:true,data}` 或 `{ok:false,error:{code,message,hint}}`。
 3. **读 data 用中文回答**：把 JSON 转成学生好懂的话。例如课表列出"周X第X-X节 课程名 @ 地点 老师"；成绩给出列表 + GPA/总学分/已修学分。
+   > 问"明天/某天"的课，一律用 `course --tomorrow` / `course --date YYYY-MM-DD`，**不要**自己拿整学期课表按星期猜——正方课表按教学周次排（单双周、分周次换教室、调课），只按星期过滤会错。返回的 `data.query.week` 是教学周次，回答时可以带上。
 4. **空教室推断**：用户只说"空教室"，用今天的星期几当 `--weekday`，反问"第几节？（如 1-2）"；用户说"周X第Y节"直接带入。默认只列 `available>0` 的教室。
 5. **出错要透传 hint**：遇到 `PARSE_FAILED`，如实告诉用户"教务接口可能与预期不符"，并给出 `stdu-cli dump` 的校准命令，不要编造数据。
 6. **安全**：绝不索要、绝不存储账号密码；不模拟登录、不写教务数据，只读。
