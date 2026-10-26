@@ -19,12 +19,14 @@ function normalizeGrade(item) {
   if (!name) return null;
   return {
     name: String(name).trim(),
-    score: pick(item, ['cj', 'CJ', 'score', 'zpcj']),
+    score: pick(item, ['cj', 'CJ', 'bfzcj1', 'zcj', 'score', 'zpcj']),
     credit: toNum(pick(item, ['xf', 'XF', 'credit'])),
-    gpa: toNum(pick(item, ['jd', 'JD', 'gpa'])),
-    type: pick(item, ['kctype', 'KCTYPE', 'ksxz', 'KSXZ', 'type']) ?? null,
-    year: pick(item, ['xnm', 'XNM', 'year']) ?? null,
-    term: pick(item, ['xqm', 'XQM', 'term']) ?? null,
+    gpa: toNum(pick(item, ['jd', 'JD', 'xfjd', 'gpa'])),
+    nature: pick(item, ['kcxzmc', 'kcxz', 'KCXZ', 'kclbmc']) ?? null,
+    examType: pick(item, ['ksxz', 'ksxzdm', 'KSXZ', 'kcbj']) ?? null,
+    teacher: pick(item, ['jsxm', 'JSXM', 'rkjs']) ?? null,
+    year: pick(item, ['xnmmc', 'xnm', 'XNM', 'year']) ?? null,
+    term: pick(item, ['xqmmc', 'xqm', 'XQM', 'term']) ?? null,
     raw: item
   };
 }
@@ -64,7 +66,7 @@ function pick(obj, keys) {
 }
 
 function toNum(value) {
-  if (value == null) return null;
+  if (value == null || value === '') return null;
   const n = Number(value);
   return Number.isFinite(n) ? n : null;
 }
