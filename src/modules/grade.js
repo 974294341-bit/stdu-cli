@@ -1,22 +1,15 @@
 import { STDU } from '../config.js';
 import { parseGradeJson } from './grade-parser.js';
 import { clickQuery, collectJsonWhile, gotoZf, postFormInPage } from './jw.js';
-import { ensureSession, needLoginError } from './session.js';
+import { closeSession, ensureSession, needLoginError } from './session.js';
 import { defaultTerm, termToXqm } from './course.js';
 
-export async function getGrade(options = {}) {
+// 纯查询：只依赖一个已登录的 page（守护进程复用同一个页面反复调它）。
+export async function queryGrade(page, options = {}) {
   const { year, term } = resolveTerm(options);
   const xqm = termToXqm(term);
 
-  // 会话过期时自动弹浏览器让用户登录，登录完在同一上下文里立刻查完返回
-  const { session, relogged } = await ensureSession(options);
-  if (!session.auth.loggedIn) {
-    await session.context.close().catch(() => {});
-    throw needLoginError(session.auth);
-  }
-
-  try {
-    const { page } = session;
+  {
     // 直接 POST 到学生成绩真实数据接口（cxXsgrcj?doType=query，返回 items）。
     const res = await postFormInPage(page, STDU.zf.endpoints.gradeData, {
       xnm: String(year),
@@ -50,9 +43,23 @@ export async function getGrade(options = {}) {
       throw error;
     }
 
-    return { query: { year, term, xqm }, source, relogged, ...parsed };
+    return { query: { year, term, xqm }, source, ...parsed };
+  }
+}
+
+// CLI 直连入口（守护进程不可用时）。
+export async function getGrade(options = {}) {
+  const { session, relogged } = await ensureSession(options);
+  if (!session.auth.loggedIn) {
+    await closeSession(session);
+    throw needLoginError(session.auth);
+  }
+
+  try {
+    const data = await queryGrade(session.page, options);
+    return { ...data, relogged };
   } finally {
-    await session.context.close().catch(() => {});
+    await closeSession(session);
   }
 }
 
