@@ -3,6 +3,7 @@ import { classifyAuthPage } from './auth-detector.js';
 import { parseCourseJson } from './course-parser.js';
 import { clickQuery, collectJsonWhile, gotoZf, postFormInPage } from './jw.js';
 import { ensureSession, needLoginError } from './session.js';
+import { fetchWeekInfo, xqjOfDate, zcOfDate } from './week.js';
 
 // 默认学年学期：9-1 月算秋季(term1)，2-7 月算春季(term2)。
 export function defaultTerm(now = new Date()) {
@@ -63,6 +64,26 @@ export async function getCourse(options = {}) {
       error.code = 'PARSE_FAILED';
       error.hint = '运行 `stdu-cli dump` 提供真实 kbList 结构以便适配。';
       throw error;
+    }
+
+    // 按日期查询：先把「现在第几周」查出来，再把目标日期换算成教学周次后过滤
+    if (options.date) {
+      const weekInfo = await fetchWeekInfo(page);
+      const xqj = xqjOfDate(options.date);
+      const zc = zcOfDate(options.date, weekInfo);
+      const courses = parsed.courses.filter((c) => (
+        c.weekday === xqj && (!zc || !c.weeks || c.weeks.includes(zc))
+      ));
+      courses.sort((a, b) => (a.periods?.start ?? 99) - (b.periods?.start ?? 99));
+      return {
+        query: { year, term, xqm, date: options.date, weekday: xqj, week: zc },
+        weekInfo,
+        source,
+        relogged,
+        term: parsed.term,
+        count: courses.length,
+        courses
+      };
     }
 
     return {
