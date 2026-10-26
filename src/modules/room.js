@@ -1,7 +1,7 @@
 import { STDU } from '../config.js';
 import { parseRoomJson } from './room-parser.js';
 import { postFormInPage } from './jw.js';
-import { ensureSession, needLoginError } from './session.js';
+import { closeSession, ensureSession, needLoginError } from './session.js';
 
 // 查询某时段空闲教室。
 // options: { weekday(1-7), period('1-2'|'3'), week(8 | '1-16'), campus, type }
@@ -9,16 +9,9 @@ import { ensureSession, needLoginError } from './session.js';
 // 正方空闲教室接口（cdjy_cxKxcdlb.html?doType=query）的 zcd/jcd 为位掩码：
 //   zcd |= 1<<(周-1)，jcd |= 1<<(节次-1)；xqj 为逗号分隔的星期(1-7)。
 // 留 0/空 表示不限制（返回全部教室）。
-export async function getEmptyRooms(options = {}) {
-  // 会话过期时自动弹浏览器让用户登录，登录完在同一上下文里立刻查完返回
-  const { session, relogged } = await ensureSession(options);
-  if (!session.auth.loggedIn) {
-    await session.context.close().catch(() => {});
-    throw needLoginError(session.auth);
-  }
-
-  try {
-    const { page } = session;
+// 纯查询：只依赖一个已登录的 page（守护进程复用同一个页面反复调它）。
+export async function queryEmptyRooms(page, options = {}) {
+  {
     const form = buildRoomForm(options);
     const res = await postFormInPage(page, STDU.zf.endpoints.roomData, form);
 
@@ -43,9 +36,23 @@ export async function getEmptyRooms(options = {}) {
       ? parsed.rooms.filter((r) => r.available == null || r.available > 0)
       : parsed.rooms;
 
-    return { query: options, source: 'post', relogged, count: rooms.length, rooms };
+    return { query: options, source: 'post', count: rooms.length, rooms };
+  }
+}
+
+// CLI 直连入口（守护进程不可用时）。
+export async function getEmptyRooms(options = {}) {
+  const { session, relogged } = await ensureSession(options);
+  if (!session.auth.loggedIn) {
+    await closeSession(session);
+    throw needLoginError(session.auth);
+  }
+
+  try {
+    const data = await queryEmptyRooms(session.page, options);
+    return { ...data, relogged };
   } finally {
-    await session.context.close().catch(() => {});
+    await closeSession(session);
   }
 }
 
