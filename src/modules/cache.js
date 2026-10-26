@@ -10,7 +10,8 @@ import { getCacheDir } from './paths.js';
 const TTL = {
   course: 6 * 60 * 60 * 1000, // 课表一学期基本不动
   grade: 30 * 60 * 1000,      // 成绩会陆续出，半小时够用
-  room: 10 * 60 * 1000        // 空闲教室随选课变动
+  room: 10 * 60 * 1000,       // 空闲教室随选课变动
+  week: 6 * 60 * 60 * 1000    // 教学周次一天才变一次
 };
 
 function cacheFile(key, options = {}) {
