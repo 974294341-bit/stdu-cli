@@ -3,10 +3,24 @@
 //   下拉 zs   = "7(2026-10-26至2026-11-01)"，给出本周的日期区间
 // 有了 dqzc + 本周起始日，就能把任意日期换算成教学周次，从而回答「明天有什么课」。
 import { gotoZf } from './jw.js';
+import { readCache, writeCache } from './cache.js';
 
 export const WEEK_PAGE = '/kbcx/xskbcxZccx_cxXskbcxIndex.html?gnmkdm=N2154';
 
+// 周次一天才变一次，但读它要额外导航一次页面（约 1.5~2 秒）。
+// 按「当天」缓存，避免每次 --date 查询都付这个代价。
 export async function fetchWeekInfo(page) {
+  const today = todayStr();
+  const cached = readCache('week', {}, {});
+  if (cached && cached.today === today && cached.currentZc) return cached;
+
+  const info = await readWeekInfo(page);
+  const payload = { ...info, today };
+  writeCache('week', {}, payload, {});
+  return payload;
+}
+
+async function readWeekInfo(page) {
   await gotoZf(page, WEEK_PAGE);
   await new Promise((r) => setTimeout(r, 1200));
   const info = await page.evaluate(() => {
