@@ -1,4 +1,5 @@
 import { INTERNAL_URL_MARKERS, LOGIN_URL_MARKERS } from '../config.js';
+import { readPageState } from './page.js';
 
 // 判定当前页面是否已进入正方系统内部（登录完成）。
 // 因为 STDU 前面有 WebVPN 网关，登录成功后的落地 URL 可能是 webproxy 重写后的地址，
@@ -41,4 +42,19 @@ export function classifyAuthPage(state) {
     return { loggedIn: true, reason: 'vpn-proxy-text', url, title };
   }
   return { loggedIn: false, reason: 'indeterminate', url, title };
+}
+
+// 轮询等待真人完成登录（最多 timeoutMs）。复用：登录命令与 bootstrap 校准命令共用。
+export async function waitForLogin(page, options = {}) {
+  const timeoutMs = options.timeoutMs ?? 300000;
+  const deadline = Date.now() + timeoutMs;
+  let auth = null;
+  let state = null;
+  while (Date.now() < deadline) {
+    state = await readPageState(page);
+    auth = classifyAuthPage(state);
+    if (auth.loggedIn) return { loggedIn: true, auth, state };
+    await page.waitForTimeout(1500);
+  }
+  return { loggedIn: false, auth, state };
 }
