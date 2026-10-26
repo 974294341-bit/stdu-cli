@@ -47,15 +47,14 @@
 ### 方式 A：一键安装（推荐，发给同学用这一条）
 
 ```bash
-# 一键：复制技能到 AI 的 skills 目录 + 装好浏览器内核（只需 Node.js ≥ 20）
+# 一键：复制技能到 AI 的 skills 目录 + 装好浏览器内核，并【自动弹出学校 CAS 登录页】
 npx -y github:974294341-bit/stdu-cli install
-
-# 登录（必须真人操作：WebVPN + 学号密码 + 图形验证码）
-stdu-cli login
-# 若上一步未全局安装成功，改用：npx -y github:974294341-bit/stdu-cli login
 ```
 
-装好后，直接对你的 AI 说"这学期课表""空教室""我绩点多少"即可——技能会自动调用 `stdu-cli`。
+`install` 结束会自动打开学校统一身份认证页，用学号 + 密码 + 图形验证码完成登录（只做一次）。登录后直接对 AI 说"这学期课表""空教室""我绩点多少"即可——技能会自动调用 `stdu-cli`。
+
+> 想只装技能、稍后手动登录：`npx -y github:974294341-bit/stdu-cli install --no-login`，之后再 `stdu-cli login`。
+> 分发给同学的话，直接把 **`SHARE.md`** 里的提示词粘进他们的 AI 即可，AI 会自动完成下载与登录引导。
 
 ### 方式 B：从源码开发 / 二次修改
 
