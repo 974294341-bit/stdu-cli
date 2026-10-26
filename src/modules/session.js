@@ -2,7 +2,7 @@ import { AUTH_CHECK_URL } from '../config.js';
 import { assertBrowserAvailable, contextOptions, requirePlaywright } from './browser.js';
 import { classifyAuthPage, waitForLogin } from './auth-detector.js';
 import { readPageState, settlePage } from './page.js';
-import { readSession, saveSession } from './session-store.js';
+import { readSession, readStorageState, saveSession, saveStorageState } from './session-store.js';
 
 // 打开一个复用了持久化 profile 的浏览器上下文，并落到正方内部。
 // 成功则返回可用会话；未登录时返回 auth.loggedIn=false，由调用方决定报错或引导登录。
@@ -13,6 +13,13 @@ export async function openSession(options = {}) {
     selection.profilePath,
     contextOptions(selection, options)
   );
+
+  // CAS / WebVPN 下发的是「会话级 cookie」，浏览器一关就丢，
+  // 所以每次启动都要把上次导出的 cookie 重新注入回去 —— 这是「只认证一次」的关键。
+  const stored = readStorageState(selection.id, options);
+  if (stored && Array.isArray(stored.cookies) && stored.cookies.length) {
+    await context.addCookies(stored.cookies).catch(() => {});
+  }
 
   const page = context.pages()[0] ?? await context.newPage();
   const entry = readSession(selection.id);
@@ -68,10 +75,29 @@ export async function ensureSession(options = {}) {
     at: Date.now(),
     browser: session.selection.id
   });
+  await persistSession(session);
   return {
     session: { ...session, auth: result.auth, state: result.state },
     relogged: true
   };
+}
+
+// 把当前登录态 cookie 导出落盘，供下次启动复用。
+export async function persistSession(session, options = {}) {
+  try {
+    const state = await session.context.storageState();
+    saveStorageState(session.selection.id, state, options);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// 关闭会话前先落盘 cookie，避免下次又要重新认证。
+export async function closeSession(session, options = {}) {
+  if (!session?.context) return;
+  await persistSession(session, options).catch(() => {});
+  await session.context.close().catch(() => {});
 }
 
 export function needLoginError(auth) {
