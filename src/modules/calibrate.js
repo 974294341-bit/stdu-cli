@@ -18,7 +18,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { STDU } from '../config.js';
-import { needLoginError, openSession } from './session.js';
+import { closeSession, needLoginError, openSession } from './session.js';
 
 const STATIC_RE = /\.(js|css|png|jpg|jpeg|gif|webp|woff2?|ttf|ico|svg|map)(\?|$)/i;
 const FUNC_PAGES = ['xskbcx_cxXskbcxIndex', 'cjcx_cxDgXscj', 'cdjy_cxKxcdlb', 'xsgrxxwh_cxXsgrxx'];
@@ -365,10 +365,10 @@ export async function calibrateOnSession(session, options = {}) {
 export async function calibrate(options = {}) {
   const session = await openSession(options);
   if (!session.auth.loggedIn) {
-    await session.context.close().catch(() => {});
+    await closeSession(session);
     throw needLoginError(session.auth);
   }
   const result = await calibrateOnSession(session, options);
-  await session.context.close().catch(() => {});
+  await closeSession(session);
   return result;
 }
