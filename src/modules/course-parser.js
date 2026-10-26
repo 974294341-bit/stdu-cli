@@ -6,7 +6,13 @@ const WEEKDAY_LABEL = { 1: '周一', 2: '周二', 3: '周三', 4: '周四', 5: '
 export function parseCourseJson(body) {
   const list = extractKbList(body);
   if (!list) return null;
-  const courses = list.map(normalizeCourse).filter(Boolean);
+  let courses = list.map((it) => normalizeCourse(it, 'regular')).filter(Boolean);
+  // 合并实践/网络课（sjkList：无固定节次/教室，如超星网络课），避免漏掉课程
+  const sjk = Array.isArray(body.sjkList) ? body.sjkList : [];
+  if (sjk.length) {
+    const extra = sjk.map((it) => normalizeCourse(it, 'practice')).filter(Boolean);
+    courses = courses.concat(extra);
+  }
   const term = extractTerm(body);
   return { count: courses.length, term, courses };
 }
@@ -27,19 +33,21 @@ function extractTerm(body) {
   };
 }
 
-function normalizeCourse(item) {
+function normalizeCourse(item, kind = 'regular') {
   if (!item || typeof item !== 'object') return null;
   const name = pick(item, ['kcmc', 'KCMC', 'courseName', 'kcmc_mc']);
   if (!name) return null;
   const weekday = toInt(pick(item, ['xqj', 'XQJ', 'weekday']));
-  const periods = parsePeriods(pick(item, ['jcs', 'JCS', 'jc', 'periods']));
+  const periods = parsePeriods(pick(item, ['jcs', 'JCS', 'jc', 'periods', 'jcor']));
   return {
+    kind,
     name: String(name).trim(),
     teacher: pick(item, ['xm', 'XM', 'jsxm', 'teacher']) ?? null,
+    category: pick(item, ['kclb', 'kclbmc', 'kcxz', 'KCLB']) ?? null,
     weekday,
     weekdayLabel: weekday ? WEEKDAY_LABEL[weekday] ?? `周${weekday}` : null,
     periods,
-    weeks: parseWeeks(pick(item, ['zcd', 'ZCD', 'weeks', 'zcmc'])),
+    weeks: parseWeeks(pick(item, ['zcd', 'ZCD', 'weeks', 'zcmc', 'qsjsz'])),
     location: pick(item, ['cdmc', 'CDMC', 'jsmc', 'location']) ?? null,
     campus: pick(item, ['xqmc', 'XQMC', 'campus']) ?? null,
     credit: pick(item, ['xf', 'XF', 'credit']) ?? null,
