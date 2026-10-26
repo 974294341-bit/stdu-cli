@@ -75,7 +75,7 @@ stdu-cli course --term 1    # 查本学期课表
 stdu-cli grade --term 1     # 查本学期成绩 + 绩点/学分统计
 ```
 
-> 首次使用或报 `NEED_LOGIN` 时，先跑 `stdu-cli login`。登录态保存在浏览器 profile（`~/.stdu-cli/browser-profiles/<browser>/`），不会存密码。
+> 首次使用或报 `NEED_LOGIN` 时，跑一次 `stdu-cli login`。**之后不必再认证**（见下方「只认证一次」），登录态不存密码。
 
 ---
 
@@ -84,20 +84,43 @@ stdu-cli grade --term 1     # 查本学期成绩 + 绩点/学分统计
 | 命令 | 说明 |
 |---|---|
 | `stdu-cli doctor` | 环境/依赖/浏览器/会话/网络自检 |
-| `stdu-cli login` | 浏览器手动登录（WebVPN+CAS，含验证码） |
-| `stdu-cli logout` | 清除已保存会话 |
+| `stdu-cli login` | 浏览器手动登录（WebVPN+CAS，含验证码）——**只需一次** |
+| `stdu-cli relogin` | 换绑账号：清除登录态并重新认证一次 |
+| `stdu-cli logout` | 清除登录态 + 停守护进程 + 清缓存 |
+| `stdu-cli daemon start\|stop\|restart\|status` | 常驻守护进程（保持登录态、让查询秒回） |
 | `stdu-cli browser status\|list\|use <id>\|install chromium --yes` | 浏览器管理 |
 | `stdu-cli course [--year YYYY] [--term 1\|2\|3]` | 课表（默认当前学期） |
+| `stdu-cli course --tomorrow\|--today\|--date 2026-10-27` | 某一天的课（按教学周次过滤） |
 | `stdu-cli grade [--year YYYY] [--term 1\|2\|3]` | 成绩 + GPA/学分统计 |
 | `stdu-cli room [--weekday 1] [--period 1-2] [--week 8] [--campus X]` | 空闲教室 |
 | `stdu-cli bootstrap` | 登录 + 抓真实响应校准接口（维护者用） |
 | `stdu-cli dump [--out path] [--paths a,b,c]` | 抓真实响应，校准端点 |
 
 所有命令输出 `{ ok, data, meta }` 或 `{ ok:false, error:{code,message,hint} }`。
+`data.via` 标明数据来源：`cache` / `daemon` / `direct`；`data.elapsedMs` 是耗时。
 
-### 会话过期会自动处理
-CAS 会话较短（几分钟到几十分钟）。`course` / `grade` / `room` 检测到未登录时，
-**会自动打开认证页等你登录，登录成功就在同一个浏览器上下文里立刻把数据查完返回**——不需要先跑 `login` 再跑查询两条命令。
+通用选项：`--no-cache`（跳过缓存）、`--no-daemon`（不用常驻进程，单次开浏览器）。
+
+### 只认证一次
+
+CAS 下发的是**会话级 cookie**，浏览器一关就没了——这正是"每条命令都要重新认证"的根因。为此做了两件事：
+
+1. **cookie 落盘**：用 Playwright `storageState` 把会话 cookie 导出到 `~/.stdu-cli/storage-state-<browser>.json`，下次启动用 `addCookies` 注入回去。即使浏览器完全关闭也能续上。
+2. **常驻守护进程**：`stdu-cli daemon` 起一个后台进程持有已登录页面，命令通过本机回环端口复用它。30 分钟无人调用自动退出。
+
+实测：浏览器全关 + 进程杀掉后重新查询，仍然**免登录**直接返回数据。只有首次使用和主动 `relogin` 换绑才需要真人过验证码。
+
+### 响应速度
+
+取数走三级，实测耗时（含 Node 启动约 0.7s）：
+
+| 场景 | 耗时 |
+|---|---|
+| 缓存命中 | ~1 ms（课表 6h / 成绩 30min / 空教室 10min） |
+| 守护进程热查询 | 150–450 ms |
+| 冷启动（重开浏览器，仍免登录） | ~3 s |
+
+想拿最新数据加 `--no-cache`。
 
 ---
 
