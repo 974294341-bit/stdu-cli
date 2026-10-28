@@ -4,6 +4,7 @@ import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 
 import { getProfilePath } from './paths.js';
+import { readInstallConfig, writeInstallConfig } from './skill.js';
 
 const require = createRequire(import.meta.url);
 
@@ -29,10 +30,35 @@ export function getSelectedBrowser(options = {}) {
   const fromEnv = normalizeBrowserId(env.STDU_BROWSER ?? env.STDU_BROWSER_CHANNEL);
   if (fromEnv) return buildSelection(fromEnv, 'environment');
 
+  // 其次尊重 `stdu-cli browser use <id>` 的选择（落在 ~/.stdu-cli/config.json）
+  const fromConfig = normalizeBrowserId(readInstallConfig(env)?.browser);
+  if (fromConfig) return buildSelection(fromConfig, 'config');
+
   const available = ['chrome', 'edge'].find((id) => isBrowserInstalled(id, { platform, env }));
   if (available) return buildSelection(available, 'first-available');
 
   return buildSelection('chromium', 'fallback');
+}
+
+// 切换默认浏览器：写入安装配置，持久生效（环境变量 STDU_BROWSER 优先级更高）。
+export function selectBrowser(id, options = {}) {
+  const env = options.env ?? process.env;
+  const platform = options.platform ?? process.platform;
+  const normalized = normalizeBrowserId(id);
+  if (!normalized) {
+    const error = new Error(`无法识别的浏览器：${id}（可选 chrome / edge / chromium）。`);
+    error.code = 'BROWSER_SELECTION_INVALID';
+    throw error;
+  }
+  if (!isBrowserInstalled(normalized, { platform, env })) {
+    const error = new Error(`没有找到可用的 ${DEFINITIONS[normalized].label}。`);
+    error.code = 'BROWSER_UNAVAILABLE';
+    error.hint = '安装 Chrome 或 Edge，或运行 stdu-cli browser install chromium --yes。';
+    error.details = { browser: normalized, status: getBrowserStatus({ env, platform }) };
+    throw error;
+  }
+  const configFile = writeInstallConfig({ browser: normalized });
+  return { ...buildSelection(normalized, 'config'), configFile };
 }
 
 export function getBrowserStatus(options = {}) {

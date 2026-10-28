@@ -2,6 +2,7 @@ import { AUTH_CHECK_URL } from '../config.js';
 import { assertBrowserAvailable, contextOptions, requirePlaywright } from './browser.js';
 import { classifyAuthPage, waitForLogin } from './auth-detector.js';
 import { saveSession } from './session-store.js';
+import { persistSession } from './session.js';
 
 // 交互式登录：打开真实浏览器，用户手动完成 WebVPN + CAS（账号密码 + 图形验证码），
 // 成功后把 profile 里的会话与落地 URL 持久化，供后续命令复用。
@@ -32,6 +33,9 @@ export async function login(options = {}) {
       throw error;
     }
 
+    // 关键：CAS/WebVPN 是会话级 cookie，浏览器一关就丢。
+    // 必须在关闭上下文之前把 cookie 导出落盘，否则守护进程下次起来仍判定未登录。
+    await persistSession({ selection, context }).catch(() => {});
     saveSession(selection.id, { entryUrl: page.url(), at: Date.now(), browser: selection.id });
     return {
       browser: selection.id,

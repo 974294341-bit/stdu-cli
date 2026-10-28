@@ -20,6 +20,10 @@ function log(msg) {
   process.stderr.write(`[install] ${msg}\n`);
 }
 
+// Windows 上 npm 是 npm.cmd，spawn('npm', ...) 不带 shell 会直接 ENOENT，
+// 导致所有 Windows 用户静默跳过全局安装、退化成 npx。
+const NPM = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+
 function runCommand(command, args) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: false });
@@ -46,7 +50,7 @@ export async function install({ global = true, skipLogin = false } = {}) {
   if (global) {
     try {
       log('② 尝试全局安装 stdu-cli（安装后可直接用 stdu-cli 命令，离线也能跑）…');
-      await runCommand('npm', ['install', '-g', PKG_ROOT]);
+      await runCommand(NPM, ['install', '-g', PKG_ROOT]);
       run = 'stdu-cli';
       log('   ✓ 全局安装成功');
     } catch (error) {

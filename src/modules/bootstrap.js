@@ -5,6 +5,7 @@ import { AUTH_CHECK_URL } from '../config.js';
 import { assertBrowserAvailable, contextOptions, requirePlaywright } from './browser.js';
 import { waitForLogin } from './auth-detector.js';
 import { saveSession } from './session-store.js';
+import { persistSession } from './session.js';
 import { calibrateOnSession } from './calibrate.js';
 
 export async function bootstrap(options = {}) {
@@ -33,6 +34,8 @@ export async function bootstrap(options = {}) {
       throw error;
     }
 
+    // 同上：关闭上下文前导出 cookie，保证后续命令能复用这次登录。
+    await persistSession({ selection, context }).catch(() => {});
     saveSession(selection.id, { entryUrl: page.url(), at: Date.now(), browser: selection.id });
     process.stderr.write('[stdu-cli] 登录成功，正在同一会话内抓取真实接口…\n');
 
